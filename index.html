@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>InsightCanvas - GraphQL + Knowledge AI Workbench</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  /* Smooth slide-up drawer */
+  #settingsDrawer {
+    transition: transform 0.3s ease-in-out;
+    transform: translateY(100%);
+  }
+  #settingsDrawer.open {
+    transform: translateY(0);
+  }
+  
+  /* Syntax highlighting for GraphQL */
+  .graphql-keyword { color: #c792ea; font-weight: bold; }
+  .graphql-field { color: #82aaff; }
+  .graphql-type { color: #ffcb6b; }
+  .graphql-string { color: #c3e88d; }
+  
+  /* Response formatting */
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Top Nav -->
+<div class="w-full bg-white border-b flex justify-around p-3 fixed top-0 left-0 z-20">
+  <button class="nav-btn" data-target="knowledgeTab">Knowledge</button>
+  <button class="nav-btn" data-target="chatTab">Chat</button>
+  <button class="nav-btn" data-target="toolsTab">Tools</button>
+  <button id="openSettingsBtn">Settings</button>
+</div>
+
+<div class="mt-16"></div>
+
+<!-- TABS ---------------------------------------------------------->
+<div id="knowledgeTab" class="tab-section p-4 block">
+
+  <!-- Actions -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    <button id="addCardBtn" class="px-3 py-2 bg-blue-600 text-white rounded">Add Knowledge</button>
+    <button id="importJsonBtn" class="px-3 py-2 bg-gray-300 rounded">Import JSON</button>
+    <button id="exportJsonBtn" class="px-3 py-2 bg-gray-300 rounded">Export JSON</button>
+  </div>
+
+  <!-- Search + Tag Filter -->
+  <div class="flex flex-wrap gap-2 mb-2">
+    <input id="searchInput" placeholder="Search…" class="border p-2 flex-1 rounded" />
+    <select id="tagFilter" class="border p-2 rounded">
+      <option value="">All Tags</option>
+    </select>
+  </div>
+
+  <!-- Cards Grid -->
+  <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+</div>
+
+<!-- CHAT TAB ------------------------------------------------------>
+<div id="chatTab" class="tab-section p-0 hidden">
+
+  <div class="flex h-[calc(100vh-4rem)]">
+
+    <!-- Knowledge Pane -->
+    <div class="w-1/3 border-r overflow-y-auto hidden md:block bg-white p-3">
+      <h2 class="font-semibold mb-2">Knowledge Base</h2>
+      <input id="chatKnowledgeSearch" class="border p-2 w-full mb-2 rounded" placeholder="Search…" />
+      <div id="chatKnowledgeList" class="space-y-2"></div>
+    </div>
+
+    <!-- Chat Pane -->
+    <div class="flex-1 flex flex-col bg-gray-50">
+
+      <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+      <div class="p-4 border-t bg-white flex gap-2">
+        <input id="chatInput" class="flex-1 border rounded p-2"
+               placeholder="Type your message…" />
+        <button id="sendChatBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- TOOLS TAB - GRAPHQL INSPECTOR --------------------------------->
+<div id="toolsTab" class="tab-section p-4 hidden">
+  <div class="max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">GraphQL Inspector</h2>
+    
+    <!-- Connection Settings -->
+    <div class="bg-white rounded-lg shadow p-4 mb-4">
+      <h3 class="font-semibold mb-3">Connection Settings</h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+        <div>
+          <label class="block text-sm font-medium mb-1">GraphQL Endpoint URL</label>
+          <input id="gqlEndpoint" type="url" placeholder="https://api.example.com/graphql"
+                 class="border p-2 w-full rounded" />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">API Key (Optional)</label>
+          <input id="gqlApiKey" type="password" placeholder="Enter API key"
+                 class="border p-2 w-full rounded" />
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="block text-sm font-medium mb-1">Authorization Header Type</label>
+        <select id="gqlAuthType" class="border p-2 rounded">
+          <option value="none">None</option>
+          <option value="bearer">Bearer Token</option>
+          <option value="apikey">API Key</option>
+          <option value="custom">Custom Header</option>
+        </select>
+      </div>
+      
+      <div id="customHeaderDiv" class="hidden mb-3">
+        <div class="grid grid-cols-2 gap-2">
+          <input id="customHeaderName" placeholder="Header name" class="border p-2 rounded" />
+          <input id="customHeaderValue" placeholder="Header value" class="border p-2 rounded" />
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="block text-sm font-medium mb-1">Additional Headers (JSON format)</label>
+        <textarea id="gqlHeaders" rows="2" placeholder='{"Content-Type": "application/json"}'
+                  class="border p-2 w-full rounded font-mono text-sm"></textarea>
+      </div>
+      
+      <div class="flex gap-2">
+        <button id="testConnectionBtn" class="px-4 py-2 bg-green-600 text-white rounded">
+          Test Connection
+        </button>
+        <button id="introspectSchemaBtn" class="px-4 py-2 bg-purple-600 text-white rounded">
+          Introspect Schema
+        </button>
+        <button id="saveGqlConfigBtn" class="px-4 py-2 bg-gray-600 text-white rounded">
+          Save Config
+        </button>
+      </div>
+    </div>
+    
+    <!-- Query Builder -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      
+      <!-- Left: Query Input -->
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold">GraphQL Query</h3>
+          <div class="flex gap-2">
+            <button id="formatQueryBtn" class="px-3 py-1 bg-gray-200 rounded text-sm">
+              Format
+            </button>
+            <button id="clearQueryBtn" class="px-3 py-1 bg-gray-200 rounded text-sm">
+              Clear
+            </button>
+          </div>
+        </div>
+        
+        <textarea id="gqlQuery" rows="12" placeholder="query {
+  users {
+    id
+    name
+    email
+  }
+}"
+                  class="border p-3 w-full rounded font-mono text-sm bg-gray-50"></textarea>
+        
+        <div class="mt-3">
+          <label class="block text-sm font-medium mb-1">Variables (JSON)</label>
+          <textarea id="gqlVariables" rows="4" placeholder='{"userId": 123}'
+                    class="border p-2 w-full rounded font-mono text-sm"></textarea>
+        </div>
+        
+        <button id="executeQueryBtn" class="w-full mt-3 px-4 py-3 bg-blue-600 text-white rounded font-semibold">
+          Execute Query
+        </button>
+      </div>
+      
+      <!-- Right: Response -->
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold">Response</h3>
+          <div class="flex gap-2">
+            <button id="copyResponseBtn" class="px-3 py-1 bg-gray-200 rounded text-sm">
+              Copy
+            </button>
+            <button id="clearResponseBtn" class="px-3 py-1 bg-gray-200 rounded text-sm">
+              Clear
+            </button>
+          </div>
+        </div>
+        
+        <div id="responseStatus" class="mb-2 text-sm hidden"></div>
+        
+        <pre id="gqlResponse" class="border p-3 rounded bg-gray-50 overflow-auto max-h-96 text-sm font-mono">
+Response will appear here...</pre>
+      </div>
+      
+    </div>
+    
+    <!-- Schema Explorer -->
+    <div class="bg-white rounded-lg shadow p-4 mt-4">
+      <h3 class="font-semibold mb-3">Schema Explorer</h3>
+      <div id="schemaExplorer" class="border rounded p-3 bg-gray-50 max-h-64 overflow-auto">
+        <p class="text-gray-500 text-sm">Click "Introspect Schema" to view available types and queries</p>
+      </div>
+    </div>
+    
+    <!-- Query History -->
+    <div class="bg-white rounded-lg shadow p-4 mt-4">
+      <h3 class="font-semibold mb-3">Query History</h3>
+      <div id="queryHistory" class="space-y-2"></div>
+    </div>
+    
+  </div>
+</div>
+
+<!-- SETTINGS DRAWER ------------------------------------------------>
+<div id="settingsDrawer" class="fixed bottom-0 left-0 right-0 bg-white shadow-xl p-4 z-50 rounded-t-xl">
+  <h2 class="text-lg font-bold mb-3">Settings</h2>
+
+  <label class="block mb-2">Groq API Key
+    <input id="apiKeyInput" type="password" class="border p-2 w-full rounded" />
+  </label>
+
+  <label class="block mb-2">Model
+    <select id="modelSelect" class="border p-2 w-full rounded"></select>
+  </label>
+
+  <label class="block mb-2">Temperature
+    <input id="temperatureInput" type="number" min="0" max="2" step="0.1"
+           class="border p-2 w-full rounded" />
+  </label>
+
+  <label class="block mb-2">Max Tokens
+    <input id="maxTokensInput" type="number" min="16" step="1"
+           class="border p-2 w-full rounded" />
+  </label>
+
+  <label class="block mb-2">System Prompt
+    <textarea id="systemPromptInput" rows="4"
+              class="border p-2 w-full rounded"></textarea>
+  </label>
+
+  <div class="flex justify-between mt-4">
+    <button id="closeSettingsBtn" class="px-4 py-2 bg-gray-300 rounded">Close</button>
+    <button id="saveSettingsBtn" class="px-4 py-2 bg-blue-600 text-white rounded">
+      Save
+    </button>
+  </div>
+</div>
+
+<!-- HIDDEN FILE INPUT FOR IMPORT -->
+<input id="jsonFileInput" type="file" class="hidden" accept="application/json" />
+
+<!-- MODALS --------------------------------------------------------->
+<div id="cardModal" class="fixed inset-0 hidden bg-black bg-opacity-40 flex items-center justify-center z-40">
+  <div class="bg-white rounded p-4 w-11/12 max-w-md">
+    <h2 id="cardModalTitle" class="text-lg font-semibold mb-3"></h2>
+
+    <label class="block mb-2">Title
+      <input id="cardTitleInput" class="border p-2 w-full rounded" />
+    </label>
+
+    <label class="block mb-2">Tags (comma separated)
+      <input id="cardTagsInput" class="border p-2 w-full rounded" />
+    </label>
+
+    <label class="block mb-2">Content
+      <textarea id="cardContentInput" rows="5"
+                class="border p-2 w-full rounded"></textarea>
+    </label>
+
+    <div class="flex justify-between mt-3">
+      <button id="cancelCardBtn" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+      <button id="saveCardBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPT --------------------------------------------------------->
+<script>
+/* --------------------------------------------------------
+   STATE + INITIALIZATION
+--------------------------------------------------------- */
+let knowledgeCards = JSON.parse(localStorage.getItem("knowledgeCards") || "[]");
+let settings = JSON.parse(localStorage.getItem("appSettings") || "{}");
+let gqlConfig = JSON.parse(localStorage.getItem("gqlConfig") || "{}");
+let queryHistory = JSON.parse(localStorage.getItem("queryHistory") || "[]");
+let editingCardId = null;
+
+/* --------------------------------------------------------
+   UTILITY FUNCTIONS
+--------------------------------------------------------- */
+function saveCards() {
+  localStorage.setItem("knowledgeCards", JSON.stringify(knowledgeCards));
+  renderCards();
+  renderTagFilter();
+  renderChatKnowledgeList();
+}
+
+function saveSettings() {
+  localStorage.setItem("appSettings", JSON.stringify(settings));
+}
+
+function saveGqlConfig() {
+  localStorage.setItem("gqlConfig", JSON.stringify(gqlConfig));
+}
+
+function saveQueryHistory() {
+  localStorage.setItem("queryHistory", JSON.stringify(queryHistory.slice(-20))); // Keep last 20
+}
+
+function generateId() {
+  return "id-" + Math.random().toString(36).substr(2, 9);
+}
+
+/* --------------------------------------------------------
+   NAVIGATION
+--------------------------------------------------------- */
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.target;
+    document.querySelectorAll(".tab-section").forEach(sec => sec.classList.add("hidden"));
+    document.getElementById(target).classList.remove("hidden");
+  });
+});
+
+/* --------------------------------------------------------
+   SETTINGS DRAWER
+--------------------------------------------------------- */
+const drawer = document.getElementById("settingsDrawer");
+document.getElementById("openSettingsBtn").onclick = () => drawer.classList.add("open");
+document.getElementById("closeSettingsBtn").onclick = () => drawer.classList.remove("open");
+
+document.getElementById("saveSettingsBtn").onclick = () => {
+  settings.apiKey = document.getElementById("apiKeyInput").value;
+  settings.model = document.getElementById("modelSelect").value;
+  settings.temperature = parseFloat(document.getElementById("temperatureInput").value);
+  settings.maxTokens = parseInt(document.getElementById("maxTokensInput").value);
+  settings.systemPrompt = document.getElementById("systemPromptInput").value;
+  saveSettings();
+  drawer.classList.remove("open");
+};
+
+/* Load settings on boot */
+(function loadSettingsUI() {
+  document.getElementById("apiKeyInput").value = settings.apiKey || "";
+  document.getElementById("temperatureInput").value = settings.temperature || 0.7;
+  document.getElementById("maxTokensInput").value = settings.maxTokens || 256;
+  document.getElementById("systemPromptInput").value =
+    settings.systemPrompt ||
+    "You are an expert in AI system architecture, LLM orchestration, and GraphQL-driven systems.";
+})();
+
+/* Fetch model list from Groq */
+async function loadGroqModels() {
+  const select = document.getElementById("modelSelect");
+  select.innerHTML = "";
+  if (!settings.apiKey) {
+    select.innerHTML = "<option>Please enter API key</option>";
+    return;
+  }
+
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { "Authorization": "Bearer " + settings.apiKey }
+    });
+    const data = await res.json();
+    data.data.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.id;
+      select.appendChild(opt);
+    });
+    if (settings.model) select.value = settings.model;
+  } catch (e) {
+    select.innerHTML = "<option>Error loading models</option>";
+  }
+}
+loadGroqModels();
+
+/* --------------------------------------------------------
+   KNOWLEDGE CARD CRUD
+--------------------------------------------------------- */
+function renderCards() {
+  const container = document.getElementById("cardsContainer");
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  const tag = document.getElementById("tagFilter").value;
+
+  container.innerHTML = "";
+
+  knowledgeCards
+    .filter(c =>
+      (!q || c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q)) &&
+      (!tag || c.tags.includes(tag))
+    )
+    .forEach(card => {
+      const div = document.createElement("div");
+      div.className = "p-3 bg-white rounded shadow";
+      div.innerHTML = `
+        <h3 class="font-semibold">${card.title}</h3>
+        <div class="text-sm text-gray-600 mb-2">${card.tags.join(", ")}</div>
+        <p class="mb-2 whitespace-pre-wrap">${card.content}</p>
+        <div class="flex gap-2">
+          <button class="px-2 py-1 bg-blue-500 text-white rounded edit-btn" data-id="${card.id}">Edit</button>
+          <button class="px-2 py-1 bg-red-500 text-white rounded delete-btn" data-id="${card.id}">Delete</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+
+  document.querySelectorAll(".edit-btn").forEach(btn => {
+    btn.onclick = () => openCardModal(btn.dataset.id);
+  });
+  document.querySelectorAll(".delete-btn").forEach(btn => {
+    btn.onclick = () => {
+      knowledgeCards = knowledgeCards.filter(c => c.id !== btn.dataset.id);
+      saveCards();
+    };
+  });
+}
+
+function renderTagFilter() {
+  const select = document.getElementById("tagFilter");
+  const tags = [...new Set(knowledgeCards.flatMap(c => c.tags))];
+
+  select.innerHTML = `<option value="">All Tags</option>`;
+  tags.forEach(tag => {
+    const opt = document.createElement("option");
+    opt.value = tag;
+    opt.textContent = tag;
+    select.appendChild(opt);
+  });
+}
+
+document.getElementById("addCardBtn").onclick = () => openCardModal(null);
+
+function openCardModal(id) {
+  editingCardId = id;
+  const modal = document.getElementById("cardModal");
+  modal.classList.remove("hidden");
+
+  if (id) {
+    const card = knowledgeCards.find(c => c.id === id);
+    document.getElementById("cardModalTitle").textContent = "Edit Knowledge";
+    document.getElementById("cardTitleInput").value = card.title;
+    document.getElementById("cardTagsInput").value = card.tags.join(", ");
+    document.getElementById("cardContentInput").value = card.content;
+  } else {
+    document.getElementById("cardModalTitle").textContent = "Add New Knowledge";
+    document.getElementById("cardTitleInput").value = "";
+    document.getElementById("cardTagsInput").value = "";
+    document.getElementById("cardContentInput").value = "";
+  }
+}
+
+document.getElementById("cancelCardBtn").onclick = () =>
+  document.getElementById("cardModal").classList.add("hidden");
+
+document.getElementById("saveCardBtn").onclick = () => {
+  const title = document.getElementById("cardTitleInput").value.trim();
+  const tags = document.getElementById("cardTagsInput").value.split(",").map(t => t.trim()).filter(Boolean);
+  const content = document.getElementById("cardContentInput").value.trim();
+
+  if (!title) return alert("Title required");
+
+  if (editingCardId) {
+    const card = knowledgeCards.find(c => c.id === editingCardId);
+    card.title = title;
+    card.tags = tags;
+    card.content = content;
+  } else {
+    knowledgeCards.push({
+      id: generateId(),
+      title,
+      tags,
+      content
+    });
+  }
+
+  saveCards();
+  document.getElementById("cardModal").classList.add("hidden");
+};
+
+/* SEARCH + FILTER */
+document.getElementById("searchInput").oninput = renderCards;
+document.getElementById("tagFilter").onchange = renderCards;
+
+/* --------------------------------------------------------
+   JSON IMPORT / EXPORT
+--------------------------------------------------------- */
+document.getElementById("exportJsonBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify(knowledgeCards, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "knowledge.json";
+  a.click();
+};
+
+document.getElementById("importJsonBtn").onclick = () =>
+  document.getElementById("jsonFileInput").click();
+
+document.getElementById("jsonFileInput").onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const text = await file.text();
+  try {
+    const json = JSON.parse(text);
+    if (!Array.isArray(json)) throw new Error("Invalid format");
+    knowledgeCards = json;
+    saveCards();
+  } catch (err) {
+    alert("Invalid JSON");
+  }
+};
+
+/* --------------------------------------------------------
+   CHAT KNOWLEDGE LIST (LEFT PANE)
+--------------------------------------------------------- */
+function renderChatKnowledgeList() {
+  const container = document.getElementById("chatKnowledgeList");
+  const q = document.getElementById("chatKnowledgeSearch").value.toLowerCase();
+
+  container.innerHTML = "";
+  knowledgeCards
+    .filter(c =>
+      !q || c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q))
+    .forEach(card => {
+      const div = document.createElement("div");
+      div.className = "p-2 bg-white shadow rounded border cursor-pointer";
+      div.textContent = card.title;
+      div.onclick = () => toggleCardSelection(card.id, div);
+      container.appendChild(div);
+    });
+}
+
+/* Selected card IDs */
+let selectedCards = [];
+
+function toggleCardSelection(id, el) {
+  if (selectedCards.includes(id)) {
+    selectedCards = selectedCards.filter(c => c !== id);
+    el.classList.remove("bg-blue-100", "border-blue-400");
+  } else {
+    selectedCards.push(id);
+    el.classList.add("bg-blue-100", "border-blue-400");
+  }
+}
+
+document.getElementById("chatKnowledgeSearch").oninput = renderChatKnowledgeList;
+
+/* --------------------------------------------------------
+   CHAT FUNCTIONALITY WITH STREAMING
+--------------------------------------------------------- */
+async function sendChatMessage() {
+  const input = document.getElementById("chatInput");
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = "";
+
+  addChatMessage("user", msg);
+
+  const contextText = selectedCards
+    .map(id => {
+      const c = knowledgeCards.find(k => k.id === id);
+      return `### ${c.title}\n${c.content}`;
+    })
+    .join("\n\n");
+
+  const payload = {
+    model: settings.model,
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens,
+    stream: true,
+    messages: [
+      { role: "system", content: settings.systemPrompt + "\n\n" + contextText },
+      { role: "user", content: msg }
+    ]
+  };
+
+  const container = addChatMessage("assistant", "");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + settings.apiKey,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    const lines = text.split("\n").filter(Boolean);
+
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const json = line.replace("data:", "").trim();
+      if (json === "[DONE]") continue;
+      try {
+        const obj = JSON.parse(json);
+        const delta = obj.choices?.[0]?.delta?.content || "";
+        container.textContent += delta;
+      } catch {}
+    }
+  }
+}
+
+document.getElementById("sendChatBtn").onclick = sendChatMessage;
+
+function addChatMessage(role, text) {
+  const container = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = role === "user" ?
+    "self-end bg-blue-200 p-2 rounded max-w-xl ml-auto" :
+    "self-start bg-white p-2 rounded shadow max-w-xl";
+
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+/* --------------------------------------------------------
+   GRAPHQL INSPECTOR FUNCTIONALITY
+--------------------------------------------------------- */
+
+// Load saved config
+(function loadGqlConfig() {
+  document.getElementById("gqlEndpoint").value = gqlConfig.endpoint || "";
+  document.getElementById("gqlApiKey").value = gqlConfig.apiKey || "";
+  document.getElementById("gqlAuthType").value = gqlConfig.authType || "none";
+  document.getElementById("gqlHeaders").value = gqlConfig.headers || "{}";
+  
+  if (gqlConfig.customHeaderName) {
+    document.getElementById("customHeaderName").value = gqlConfig.customHeaderName;
+    document.getElementById("customHeaderValue").value = gqlConfig.customHeaderValue;
+  }
+  
+  renderQueryHistory();
+})();
+
+// Show/hide custom header inputs
+document.getElementById("gqlAuthType").onchange = function() {
+  const customDiv = document.getElementById("customHeaderDiv");
+  customDiv.classList.toggle("hidden", this.value !== "custom");
+};
+
+// Build headers for request
+function buildHeaders() {
+  const headers = {};
+  
+  try {
+    const additionalHeaders = JSON.parse(document.getElementById("gqlHeaders").value || "{}");
+    Object.assign(headers, additionalHeaders);
+  } catch (e) {
+    console.error("Invalid additional headers JSON");
+  }
+  
+  const authType = document.getElementById("gqlAuthType").value;
+  const apiKey = document.getElementById("gqlApiKey").value;
+  
+  if (authType === "bearer" && apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  } else if (authType === "apikey" && apiKey) {
+    headers["X-API-Key"] = apiKey;
+  } else if (authType === "custom") {
+    const name = document.getElementById("customHeaderName").value;
+    const value = document.getElementById("customHeaderValue").value;
+    if (name && value) {
+      headers[name] = value;
+    }
+  }
+  
+  headers["Content-Type"] = "application/json";
+  
+  return headers;
+}
+
+// Save GraphQL config
+document.getElementById("saveGqlConfigBtn").onclick = () => {
+  gqlConfig = {
+    endpoint: document.getElementById("gqlEndpoint").value,
+    apiKey: document.getElementById("gqlApiKey").value,
+    authType: document.getElementById("gqlAuthType").value,
+    headers: document.getElementById("gqlHeaders").value,
+    customHeaderName: document.getElementById("customHeaderName").value,
+    customHeaderValue: document.getElementById("customHeaderValue").value
+  };
+  saveGqlConfig();
+  showStatus("Configuration saved!", "success");
+};
+
+// Test connection
+document.getElementById("testConnectionBtn").onclick = async () => {
+  const endpoint = document.getElementById("gqlEndpoint").value;
+  if (!endpoint) return alert("Please enter an endpoint URL");
+  
+  showStatus("Testing connection...", "info");
+  
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        query: "{ __typename }"
+      })
+    });
+    
+    if (response.ok) {
+      showStatus(`Connection successful! (${response.status})`, "success");
+    } else {
+      showStatus(`Connection failed: ${response.status} ${response.statusText}`, "error");
+    }
+  } catch (error) {
+    showStatus(`Connection error: ${error.message}`, "error");
+  }
+};
+
+// Introspect schema
+document.getElementById("introspectSchemaBtn").onclick = async () => {
+  const endpoint = document.getElementById("gqlEndpoint").value;
+  if (!endpoint) return alert("Please enter an endpoint URL");
+  
+  showStatus("Fetching schema...", "info");
+  
+  const introspectionQuery = `
+    query IntrospectionQuery {
+      __schema {
+        queryType { name }
+        mutationType { name }
+        subscriptionType { name }
+        types {
+          name
+          kind
+          description
+          fields {
+            name
+            type {
+              name
+              kind
+            }
+          }
+        }
+      }
+    }
+  `;
+  
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({ query: introspectionQuery })
+    });
+    
+    const result = await response.json();
+    
+    if (result.errors) {
+      showStatus("Schema introspection failed", "error");
+      document.getElementById("gqlResponse").textContent = JSON.stringify(result.errors, null, 2);
+    } else {
+      showStatus("Schema retrieved successfully!", "success");
+      displaySchema(result.data.__schema);
+    }
+  } catch (error) {
+    showStatus(`Error: ${error.message}`, "error");
+  }
+};
+
+// Display schema in explorer
+function displaySchema(schema) {
+  const explorer = document.getElementById("schemaExplorer");
+  explorer.innerHTML = "";
+  
+  const types = schema.types.filter(t => 
+    !t.name.startsWith("__") && 
+    ["OBJECT", "INTERFACE", "ENUM"].includes(t.kind)
+  );
+  
+  let html = `<div class="space-y-3">`;
+  
+  if (schema.queryType) {
+    html += `<div class="font-semibold text-green-700">Query Type: ${schema.queryType.name}</div>`;
+  }
+  if (schema.mutationType) {
+    html += `<div class="font-semibold text-blue-700">Mutation Type: ${schema.mutationType.name}</div>`;
+  }
+  
+  html += `<div class="border-t pt-2 mt-2"><strong>Available Types:</strong></div>`;
+  
+  types.slice(0, 20).forEach(type => {
+    html += `<div class="ml-3">
+      <span class="font-mono text-sm font-semibold text-purple-600">${type.name}</span>
+      <span class="text-xs text-gray-500">(${type.kind})</span>`;
+    
+    if (type.fields && type.fields.length > 0) {
+      html += `<div class="ml-4 text-xs text-gray-600">`;
+      type.fields.slice(0, 5).forEach(field => {
+        html += `<div>• ${field.name}: ${field.type.name || field.type.kind}</div>`;
+      });
+      if (type.fields.length > 5) {
+        html += `<div class="text-gray-400">... ${type.fields.length - 5} more fields</div>`;
+      }
+      html += `</div>`;
+    }
+    
+    html += `</div>`;
+  });
+  
+  if (types.length > 20) {
+    html += `<div class="text-sm text-gray-500 italic">... and ${types.length - 20} more types</div>`;
+  }
+  
+  html += `</div>`;
+  explorer.innerHTML = html;
+}
+
+// Execute GraphQL query
+document.getElementById("executeQueryBtn").onclick = async () => {
+  const endpoint = document.getElementById("gqlEndpoint").value;
+  const query = document.getElementById("gqlQuery").value.trim();
+  
+  if (!endpoint) return alert("Please enter an endpoint URL");
+  if (!query) return alert("Please enter a query");
+  
+  showStatus("Executing query...", "info");
+  
+  let variables = {};
+  const variablesText = document.getElementById("gqlVariables").value.trim();
+  
+  if (variablesText) {
+    try {
+      variables = JSON.parse(variablesText);
+    } catch (e) {
+      return alert("Invalid JSON in variables field");
+    }
+  }
+  
+  const startTime = Date.now();
+  
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        query: query,
+        variables: variables
+      })
+    });
+    
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    const result = await response.json();
+    
+    document.getElementById("gqlResponse").textContent = JSON.stringify(result, null, 2);
+    
+    if (result.errors) {
+      showStatus(`Query completed with errors (${duration}ms)`, "error");
+    } else {
+      showStatus(`Query successful (${duration}ms)`, "success");
+    }
+    
+    // Add to history
+    addToQueryHistory(query, variables, result);
+    
+  } catch (error) {
+    showStatus(`Error: ${error.message}`, "error");
+    document.getElementById("gqlResponse").textContent = `Error: ${error.message}`;
+  }
+};
+
+// Format query button
+document.getElementById("formatQueryBtn").onclick = () => {
+  const query = document.getElementById("gqlQuery").value;
+  try {
+    // Simple formatting - add proper indentation
+    const formatted = query
+      .replace(/\{/g, '{\n  ')
+      .replace(/\}/g, '\n}')
+      .replace(/,/g, ',\n  ')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line)
+      .join('\n');
+    document.getElementById("gqlQuery").value = formatted;
+  } catch (e) {
+    alert("Could not format query");
+  }
+};
+
+// Clear buttons
+document.getElementById("clearQueryBtn").onclick = () => {
+  document.getElementById("gqlQuery").value = "";
+  document.getElementById("gqlVariables").value = "";
+};
+
+document.getElementById("clearResponseBtn").onclick = () => {
+  document.getElementById("gqlResponse").textContent = "Response will appear here...";
+  document.getElementById("responseStatus").classList.add("hidden");
+};
+
+// Copy response
+document.getElementById("copyResponseBtn").onclick = () => {
+  const response = document.getElementById("gqlResponse").textContent;
+  navigator.clipboard.writeText(response).then(() => {
+    showStatus("Response copied to clipboard!", "success");
+  });
+};
+
+// Show status messages
+function showStatus(message, type) {
+  const statusDiv = document.getElementById("responseStatus");
+  statusDiv.textContent = message;
+  statusDiv.className = "mb-2 text-sm px-3 py-2 rounded ";
+  
+  if (type === "success") {
+    statusDiv.className += "bg-green-100 text-green-800";
+  } else if (type === "error") {
+    statusDiv.className += "bg-red-100 text-red-800";
+  } else {
+    statusDiv.className += "bg-blue-100 text-blue-800";
+  }
+  
+  statusDiv.classList.remove("hidden");
+  
+  setTimeout(() => {
+    statusDiv.classList.add("hidden");
+  }, 5000);
+}
+
+// Query history management
+function addToQueryHistory(query, variables, result) {
+  const historyItem = {
+    id: generateId(),
+    timestamp: new Date().toISOString(),
+    query: query,
+    variables: variables,
+    success: !result.errors,
+    preview: query.substring(0, 100)
+  };
+  
+  queryHistory.unshift(historyItem);
+  saveQueryHistory();
+  renderQueryHistory();
+}
+
+function renderQueryHistory() {
+  const container = document.getElementById("queryHistory");
+  container.innerHTML = "";
+  
+  if (queryHistory.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-sm">No query history yet</p>';
+    return;
+  }
+  
+  queryHistory.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "border rounded p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer";
+    
+    const time = new Date(item.timestamp).toLocaleString();
+    const statusBadge = item.success 
+      ? '<span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Success</span>'
+      : '<span class="text-xs bg-red-200 text-red-800 px-2 py-1 rounded">Error</span>';
+    
+    div.innerHTML = `
+      <div class="flex justify-between items-start mb-2">
+        <div class="text-xs text-gray-500">${time}</div>
+        ${statusBadge}
+      </div>
+      <pre class="text-xs font-mono text-gray-700 whitespace-pre-wrap">${item.preview}...</pre>
+      <div class="mt-2 flex gap-2">
+        <button class="load-history-btn text-xs px-2 py-1 bg-blue-500 text-white rounded" data-id="${item.id}">
+          Load
+        </button>
+        <button class="delete-history-btn text-xs px-2 py-1 bg-red-500 text-white rounded" data-id="${item.id}">
+          Delete
+        </button>
+      </div>
+    `;
+    
+    container.appendChild(div);
+  });
+  
+  // Attach event listeners
+  document.querySelectorAll(".load-history-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const item = queryHistory.find(h => h.id === btn.dataset.id);
+      if (item) {
+        document.getElementById("gqlQuery").value = item.query;
+        document.getElementById("gqlVariables").value = JSON.stringify(item.variables, null, 2);
+        showStatus("Query loaded from history", "info");
+      }
+    };
+  });
+  
+  document.querySelectorAll(".delete-history-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      queryHistory = queryHistory.filter(h => h.id !== btn.dataset.id);
+      saveQueryHistory();
+      renderQueryHistory();
+    };
+  });
+}
+
+/* --------------------------------------------------------
+   INITIAL RENDER
+--------------------------------------------------------- */
+renderCards();
+renderTagFilter();
+renderChatKnowledgeList();
+</script>
+</body>
+</html>
