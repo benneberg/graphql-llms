@@ -1,6 +1,17 @@
 # InsightStudio - GraphQL + Knowledge AI Workbench
 A Local-First AI Workspace for Knowledge, Chat, and GraphQL Exploration
 
+Three distinct value propositions:
+- A simple personal knowledge base
+- A local-first, context-aware AI chat
+- A full GraphQL inspector and schema explorer
+
+This combination makes it uniquely useful for:
+- Developers working with APIs
+- Students learning GraphQL and LLM prompting
+- Anyone wanting a private, “no-backend” knowledge assistant
+- People who want an AI that can ingest their structured knowledge, not just ad-hoc messages
+
 InsightCanvas is an integrated, browser-native tool designed to streamline your workflow by unifying three core capabilities:
 
 1. **Knowledge Base Manager** – Create, organize, import, and export your own knowledge cards.  
