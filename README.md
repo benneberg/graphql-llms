@@ -15,7 +15,7 @@ This combination makes it uniquely useful for:
 InsightCanvas is an integrated, browser-native tool designed to streamline your workflow by unifying three core capabilities:
 
 1. **Knowledge Base Manager** – Create, organize, import, and export your own knowledge cards.  
-2. **Context-Aware AI Chat Assistant** – Provide selected knowledge as context to the AI and interact using your Groq API key.  
+2. **Context-Aware AI Chat Assistant** – Provide selected knowledge as context to the AI and interact using your AzureAI API key.  
 3. **GraphQL Inspector Console** – Test endpoints, manage headers and authentication, introspect schemas, and run queries with history tracking.
 
 All data is stored locally via `localStorage`. No backend, no cloud storage, no external services beyond your configured APIs.
@@ -31,7 +31,7 @@ All data is stored locally via `localStorage`. No backend, no cloud storage, no 
 - Select cards to feed directly as context into the assistant.
 
 ### AI Chat Assistant  
-- Uses your Groq API key for fast LLM interactions.  
+- Uses your AzureAi API key for fast LLM interactions.  
 - Configure model, temperature, max tokens, and system prompt.  
 - Streams responses in real time.  
 - Includes context injection based on selected knowledge cards.
@@ -52,7 +52,7 @@ A complete GraphQL utility inside your browser:
 
 - **Frontend:** Vanilla JavaScript + TailwindCSS  
 - **Storage:** `localStorage` (no backend required)  
-- **AI:** Groq API (user-provided key)  
+- **AI:** AzureAi API (user-provided key)  
 - **Environment:** Fully client-side (works offline except for GraphQL/API calls)
 
 ---
@@ -86,7 +86,7 @@ No build step is required.
 
 ### 2. AI Chat
 
-* Open **Settings** and enter your Groq API key. (Easy to change api calls in src to what ever required like openrouter, opaenai etc)
+* Open **Settings** and enter your AzureAi API key. (Easy to change api calls in src to what ever required like openrouter, opaenai etc)
 * Select a model from the automatic model list.
 * Select cards from the left knowledge pane to inject their content as context.
 * Start chatting.
