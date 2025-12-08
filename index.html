@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>InsightCanvas - GraphQL + Knowledge AI Workbench</title>
+<title>InsightCanvas - GraphQL + Azure AI Workbench</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
@@ -27,6 +27,32 @@
     white-space: pre-wrap;
     word-wrap: break-word;
   }
+  
+  /* Chat message animations */
+  .chat-message {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .thinking-indicator {
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
 </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
@@ -34,7 +60,7 @@
 <!-- Top Nav -->
 <div class="w-full bg-white border-b flex justify-around p-3 fixed top-0 left-0 z-20">
   <button class="nav-btn" data-target="knowledgeTab">Knowledge</button>
-  <button class="nav-btn" data-target="chatTab">Chat</button>
+  <button class="nav-btn" data-target="chatTab">AI Chat</button>
   <button class="nav-btn" data-target="toolsTab">Tools</button>
   <button id="openSettingsBtn">Settings</button>
 </div>
@@ -64,27 +90,73 @@
 
 </div>
 
-<!-- CHAT TAB ------------------------------------------------------>
+<!-- AI CHAT TAB ------------------------------------------------------>
 <div id="chatTab" class="tab-section p-0 hidden">
 
   <div class="flex h-[calc(100vh-4rem)]">
 
-    <!-- Knowledge Pane -->
+    <!-- Context Pane -->
     <div class="w-1/3 border-r overflow-y-auto hidden md:block bg-white p-3">
-      <h2 class="font-semibold mb-2">Knowledge Base</h2>
-      <input id="chatKnowledgeSearch" class="border p-2 w-full mb-2 rounded" placeholder="Search…" />
-      <div id="chatKnowledgeList" class="space-y-2"></div>
+      <h2 class="font-semibold mb-2">Context</h2>
+      
+      <!-- Knowledge Base Section -->
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Knowledge Base</h3>
+        <input id="chatKnowledgeSearch" class="border p-2 w-full mb-2 rounded text-sm" placeholder="Search knowledge…" />
+        <div id="chatKnowledgeList" class="space-y-2"></div>
+      </div>
+      
+      <!-- GraphQL Data Section -->
+      <div class="border-t pt-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">GraphQL Data</h3>
+        <div class="text-xs text-gray-600 mb-2">
+          Connected: <span id="gqlConnectionStatus" class="font-semibold">Not configured</span>
+        </div>
+        <button id="loadGraphQLSchemaBtn" class="w-full px-3 py-2 bg-purple-600 text-white rounded text-sm mb-2">
+          Load Schema
+        </button>
+        <div id="availableQueriesPanel" class="hidden">
+          <div class="text-xs text-gray-600 mb-1">Available queries:</div>
+          <div id="availableQueriesList" class="space-y-1"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Chat Pane -->
     <div class="flex-1 flex flex-col bg-gray-50">
 
+      <!-- Chat Header -->
+      <div class="bg-white border-b p-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold">AI Assistant</h2>
+            <p class="text-xs text-gray-600">Ask questions about your data or request GraphQL queries</p>
+          </div>
+          <button id="clearChatBtn" class="px-3 py-1 bg-gray-200 rounded text-sm">Clear Chat</button>
+        </div>
+      </div>
+
       <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
 
-      <div class="p-4 border-t bg-white flex gap-2">
-        <input id="chatInput" class="flex-1 border rounded p-2"
-               placeholder="Type your message…" />
-        <button id="sendChatBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
+      <div class="p-4 border-t bg-white">
+        <!-- Example prompts -->
+        <div id="examplePrompts" class="mb-3 flex flex-wrap gap-2">
+          <button class="example-prompt px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+            Show me media files that include 720p
+          </button>
+          <button class="example-prompt px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+            Find all users created this month
+          </button>
+          <button class="example-prompt px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+            What's in my GraphQL schema?
+          </button>
+        </div>
+        
+        <div class="flex gap-2">
+          <input id="chatInput" class="flex-1 border rounded p-2"
+                 placeholder="Ask me anything about your data..." />
+          <button id="sendChatBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
+        </div>
       </div>
 
     </div>
@@ -205,8 +277,7 @@
         
         <div id="responseStatus" class="mb-2 text-sm hidden"></div>
         
-        <pre id="gqlResponse" class="border p-3 rounded bg-gray-50 overflow-auto max-h-96 text-sm font-mono">
-Response will appear here...</pre>
+        <pre id="gqlResponse" class="border p-3 rounded bg-gray-50 overflow-auto max-h-96 text-sm font-mono">Response will appear here...</pre>
       </div>
       
     </div>
@@ -229,15 +300,24 @@ Response will appear here...</pre>
 </div>
 
 <!-- SETTINGS DRAWER ------------------------------------------------>
-<div id="settingsDrawer" class="fixed bottom-0 left-0 right-0 bg-white shadow-xl p-4 z-50 rounded-t-xl">
-  <h2 class="text-lg font-bold mb-3">Settings</h2>
+<div id="settingsDrawer" class="fixed bottom-0 left-0 right-0 bg-white shadow-xl p-4 z-50 rounded-t-xl max-h-[80vh] overflow-y-auto">
+  <h2 class="text-lg font-bold mb-3">Azure AI Settings</h2>
 
-  <label class="block mb-2">Groq API Key
+  <label class="block mb-2">Azure OpenAI Endpoint
+    <input id="azureEndpoint" type="url" placeholder="https://your-resource.openai.azure.com"
+           class="border p-2 w-full rounded" />
+  </label>
+
+  <label class="block mb-2">Azure OpenAI API Key
     <input id="apiKeyInput" type="password" class="border p-2 w-full rounded" />
   </label>
 
-  <label class="block mb-2">Model
-    <select id="modelSelect" class="border p-2 w-full rounded"></select>
+  <label class="block mb-2">Deployment Name
+    <input id="deploymentName" placeholder="gpt-4" class="border p-2 w-full rounded" />
+  </label>
+
+  <label class="block mb-2">API Version
+    <input id="apiVersion" placeholder="2024-02-15-preview" class="border p-2 w-full rounded" />
   </label>
 
   <label class="block mb-2">Temperature
@@ -301,6 +381,8 @@ let settings = JSON.parse(localStorage.getItem("appSettings") || "{}");
 let gqlConfig = JSON.parse(localStorage.getItem("gqlConfig") || "{}");
 let queryHistory = JSON.parse(localStorage.getItem("queryHistory") || "[]");
 let editingCardId = null;
+let gqlSchema = null;
+let conversationHistory = [];
 
 /* --------------------------------------------------------
    UTILITY FUNCTIONS
@@ -318,10 +400,11 @@ function saveSettings() {
 
 function saveGqlConfig() {
   localStorage.setItem("gqlConfig", JSON.stringify(gqlConfig));
+  updateGqlConnectionStatus();
 }
 
 function saveQueryHistory() {
-  localStorage.setItem("queryHistory", JSON.stringify(queryHistory.slice(-20))); // Keep last 20
+  localStorage.setItem("queryHistory", JSON.stringify(queryHistory.slice(-20)));
 }
 
 function generateId() {
@@ -347,51 +430,29 @@ document.getElementById("openSettingsBtn").onclick = () => drawer.classList.add(
 document.getElementById("closeSettingsBtn").onclick = () => drawer.classList.remove("open");
 
 document.getElementById("saveSettingsBtn").onclick = () => {
+  settings.azureEndpoint = document.getElementById("azureEndpoint").value;
   settings.apiKey = document.getElementById("apiKeyInput").value;
-  settings.model = document.getElementById("modelSelect").value;
+  settings.deploymentName = document.getElementById("deploymentName").value;
+  settings.apiVersion = document.getElementById("apiVersion").value || "2024-02-15-preview";
   settings.temperature = parseFloat(document.getElementById("temperatureInput").value);
   settings.maxTokens = parseInt(document.getElementById("maxTokensInput").value);
   settings.systemPrompt = document.getElementById("systemPromptInput").value;
   saveSettings();
   drawer.classList.remove("open");
+  alert("Settings saved successfully!");
 };
 
 /* Load settings on boot */
 (function loadSettingsUI() {
+  document.getElementById("azureEndpoint").value = settings.azureEndpoint || "";
   document.getElementById("apiKeyInput").value = settings.apiKey || "";
+  document.getElementById("deploymentName").value = settings.deploymentName || "gpt-4";
+  document.getElementById("apiVersion").value = settings.apiVersion || "2024-02-15-preview";
   document.getElementById("temperatureInput").value = settings.temperature || 0.7;
-  document.getElementById("maxTokensInput").value = settings.maxTokens || 256;
-  document.getElementById("systemPromptInput").value =
-    settings.systemPrompt ||
-    "You are an expert in AI system architecture, LLM orchestration, and GraphQL-driven systems.";
+  document.getElementById("maxTokensInput").value = settings.maxTokens || 1000;
+  document.getElementById("systemPromptInput").value = settings.systemPrompt ||
+    "You are an expert AI assistant specializing in GraphQL queries and data analysis. Help users explore their data by generating GraphQL queries and explaining results.";
 })();
-
-/* Fetch model list from Groq */
-async function loadGroqModels() {
-  const select = document.getElementById("modelSelect");
-  select.innerHTML = "";
-  if (!settings.apiKey) {
-    select.innerHTML = "<option>Please enter API key</option>";
-    return;
-  }
-
-  try {
-    const res = await fetch("https://api.groq.com/openai/v1/models", {
-      headers: { "Authorization": "Bearer " + settings.apiKey }
-    });
-    const data = await res.json();
-    data.data.forEach(m => {
-      const opt = document.createElement("option");
-      opt.value = m.id;
-      opt.textContent = m.id;
-      select.appendChild(opt);
-    });
-    if (settings.model) select.value = settings.model;
-  } catch (e) {
-    select.innerHTML = "<option>Error loading models</option>";
-  }
-}
-loadGroqModels();
 
 /* --------------------------------------------------------
    KNOWLEDGE CARD CRUD
@@ -550,7 +611,6 @@ function renderChatKnowledgeList() {
     });
 }
 
-/* Selected card IDs */
 let selectedCards = [];
 
 function toggleCardSelection(id, el) {
@@ -566,8 +626,75 @@ function toggleCardSelection(id, el) {
 document.getElementById("chatKnowledgeSearch").oninput = renderChatKnowledgeList;
 
 /* --------------------------------------------------------
-   CHAT FUNCTIONALITY WITH STREAMING
+   AZURE AI CHAT FUNCTIONALITY
 --------------------------------------------------------- */
+async function callAzureAI(messages, useStreaming = true) {
+  if (!settings.azureEndpoint || !settings.apiKey || !settings.deploymentName) {
+    throw new Error("Azure AI not configured. Please update settings.");
+  }
+
+  // Normalize endpoint - remove trailing slashes and ensure correct format
+  let endpoint = settings.azureEndpoint.trim().replace(/\/$/, '');
+  
+  // If endpoint includes the full path, extract just the base
+  if (endpoint.includes('/openai/deployments')) {
+    endpoint = endpoint.split('/openai/deployments')[0];
+  }
+  
+  // Ensure it ends with .openai.azure.com format
+  if (endpoint.includes('.cognitiveservices.azure.com')) {
+    endpoint = endpoint.replace('.cognitiveservices.azure.com', '.openai.azure.com');
+  }
+
+  const url = `${endpoint}/openai/deployments/${settings.deploymentName}/chat/completions?api-version=${settings.apiVersion}`;
+
+  const payload = {
+    messages: messages,
+    temperature: settings.temperature || 0.7,
+    max_tokens: settings.maxTokens || 1000,
+    stream: useStreaming
+  };
+
+  console.log('Calling Azure AI:', url);
+  console.log('API Key (first 10 chars):', settings.apiKey.substring(0, 10) + '...');
+
+  const headers = {
+    "Content-Type": "application/json"
+  };
+
+  // Azure OpenAI uses 'api-key' header (not 'Authorization')
+  headers["api-key"] = settings.apiKey.trim();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    let errorMsg = `Azure AI error: ${response.status} - ${error}\n\n`;
+    errorMsg += `URL: ${url}\n\n`;
+    
+    if (response.status === 401) {
+      errorMsg += `Authentication failed. Please check:\n`;
+      errorMsg += `1. Your API key is correct (copy from Azure Portal → Keys and Endpoint → KEY 1)\n`;
+      errorMsg += `2. No extra spaces in the API key\n`;
+      errorMsg += `3. Your Azure OpenAI resource is active\n`;
+      errorMsg += `4. Endpoint format: https://YOUR-RESOURCE-NAME.openai.azure.com`;
+    } else if (response.status === 404) {
+      errorMsg += `Deployment not found. Please check:\n`;
+      errorMsg += `1. Deployment name matches exactly (case-sensitive)\n`;
+      errorMsg += `2. Model is deployed in Azure Portal → Model deployments\n`;
+      errorMsg += `3. Try a different API version`;
+    }
+    
+    throw new Error(errorMsg);
+  }
+
+  return response;
+}
+
 async function sendChatMessage() {
   const input = document.getElementById("chatInput");
   const msg = input.value.trim();
@@ -576,70 +703,273 @@ async function sendChatMessage() {
 
   addChatMessage("user", msg);
 
-  const contextText = selectedCards
-    .map(id => {
-      const c = knowledgeCards.find(k => k.id === id);
-      return `### ${c.title}\n${c.content}`;
-    })
-    .join("\n\n");
-
-  const payload = {
-    model: settings.model,
-    temperature: settings.temperature,
-    max_tokens: settings.maxTokens,
-    stream: true,
-    messages: [
-      { role: "system", content: settings.systemPrompt + "\n\n" + contextText },
-      { role: "user", content: msg }
-    ]
-  };
-
-  const container = addChatMessage("assistant", "");
-
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + settings.apiKey,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const text = decoder.decode(value, { stream: true });
-    const lines = text.split("\n").filter(Boolean);
-
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      const json = line.replace("data:", "").trim();
-      if (json === "[DONE]") continue;
-      try {
-        const obj = JSON.parse(json);
-        const delta = obj.choices?.[0]?.delta?.content || "";
-        container.textContent += delta;
-      } catch {}
-    }
+  // Build context
+  const contextParts = [];
+  
+  // Add selected knowledge cards
+  if (selectedCards.length > 0) {
+    const knowledgeContext = selectedCards
+      .map(id => {
+        const c = knowledgeCards.find(k => k.id === id);
+        return `### ${c.title}\n${c.content}`;
+      })
+      .join("\n\n");
+    contextParts.push("# Knowledge Base Context:\n" + knowledgeContext);
   }
+
+  // Add GraphQL schema if available
+  if (gqlSchema) {
+    const schemaContext = buildSchemaContext();
+    contextParts.push("# GraphQL Schema:\n" + schemaContext);
+  }
+
+  const systemMessage = settings.systemPrompt + "\n\n" + contextParts.join("\n\n");
+
+  // Add to conversation history
+  conversationHistory.push({ role: "user", content: msg });
+
+  const messages = [
+    { role: "system", content: systemMessage },
+    ...conversationHistory.slice(-10) // Keep last 10 messages for context
+  ];
+
+  const thinkingDiv = addChatMessage("assistant", "");
+  const thinkingIndicator = document.createElement("span");
+  thinkingIndicator.className = "thinking-indicator";
+  thinkingIndicator.textContent = "Thinking...";
+  thinkingDiv.appendChild(thinkingIndicator);
+
+  try {
+    const response = await callAzureAI(messages, true);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    thinkingDiv.textContent = "";
+    let fullResponse = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+      const lines = text.split("\n").filter(line => line.trim().startsWith("data:"));
+
+      for (const line of lines) {
+        const data = line.replace("data:", "").trim();
+        if (data === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content || "";
+          fullResponse += delta;
+          thinkingDiv.textContent = fullResponse;
+          
+          // Auto-scroll
+          const container = document.getElementById("chatMessages");
+          container.scrollTop = container.scrollHeight;
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    }
+
+    conversationHistory.push({ role: "assistant", content: fullResponse });
+
+    // Check if response contains GraphQL query and offer to execute
+    if (fullResponse.includes("```graphql") || fullResponse.includes("query {")) {
+      addQueryExecutionButton(thinkingDiv, fullResponse);
+    }
+
+  } catch (error) {
+    thinkingDiv.textContent = `Error: ${error.message}`;
+    thinkingDiv.className += " text-red-600";
+  }
+}
+
+function addQueryExecutionButton(messageDiv, content) {
+  const queryMatch = content.match(/```(?:graphql)?\s*(query[\s\S]*?)```/);
+  if (!queryMatch) return;
+const query = queryMatch[1].trim();
+  
+  const buttonDiv = document.createElement("div");
+  buttonDiv.className = "mt-2 flex gap-2";
+  
+  const executeBtn = document.createElement("button");
+  executeBtn.className = "px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700";
+  executeBtn.textContent = "Execute Query";
+  executeBtn.onclick = async () => {
+    executeBtn.disabled = true;
+    executeBtn.textContent = "Executing...";
+    
+    try {
+      const result = await executeGraphQLQuery(query, {});
+      
+      // Add result to chat
+      const resultText = `Query executed successfully!\n\nResult:\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``;
+      addChatMessage("assistant", resultText);
+      
+      executeBtn.textContent = "✓ Executed";
+      executeBtn.className = "px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed";
+    } catch (error) {
+      addChatMessage("assistant", `Error executing query: ${error.message}`);
+      executeBtn.disabled = false;
+      executeBtn.textContent = "Execute Query";
+    }
+  };
+  
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700";
+  copyBtn.textContent = "Copy to Tools";
+  copyBtn.onclick = () => {
+    document.getElementById("gqlQuery").value = query;
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      if (btn.dataset.target === "toolsTab") btn.click();
+    });
+  };
+  
+  buttonDiv.appendChild(executeBtn);
+  buttonDiv.appendChild(copyBtn);
+  messageDiv.appendChild(buttonDiv);
 }
 
 document.getElementById("sendChatBtn").onclick = sendChatMessage;
 
+document.getElementById("chatInput").addEventListener("keypress", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
+
+// Example prompts
+document.querySelectorAll(".example-prompt").forEach(btn => {
+  btn.onclick = () => {
+    document.getElementById("chatInput").value = btn.textContent;
+    sendChatMessage();
+  };
+});
+
+// Clear chat
+document.getElementById("clearChatBtn").onclick = () => {
+  if (confirm("Clear all chat messages?")) {
+    document.getElementById("chatMessages").innerHTML = "";
+    conversationHistory = [];
+  }
+};
+
 function addChatMessage(role, text) {
   const container = document.getElementById("chatMessages");
   const div = document.createElement("div");
-  div.className = role === "user" ?
-    "self-end bg-blue-200 p-2 rounded max-w-xl ml-auto" :
-    "self-start bg-white p-2 rounded shadow max-w-xl";
+  div.className = "chat-message " + (role === "user" ?
+    "self-end bg-blue-500 text-white p-3 rounded-lg max-w-xl ml-auto" :
+    "self-start bg-white p-3 rounded-lg shadow max-w-2xl");
 
-  div.textContent = text;
+  // Parse markdown-style code blocks for better display
+  const formattedText = formatMessage(text);
+  div.innerHTML = formattedText;
+  
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
+}
+
+function formatMessage(text) {
+  // Simple markdown formatting
+  let formatted = text
+    .replace(/```(graphql|json)?\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-2 rounded mt-2 text-sm overflow-x-auto"><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+  
+  return formatted;
+}
+
+/* --------------------------------------------------------
+   GRAPHQL SCHEMA MANAGEMENT
+--------------------------------------------------------- */
+function updateGqlConnectionStatus() {
+  const statusEl = document.getElementById("gqlConnectionStatus");
+  if (gqlConfig.endpoint) {
+    statusEl.textContent = "Configured";
+    statusEl.className = "font-semibold text-green-600";
+  } else {
+    statusEl.textContent = "Not configured";
+    statusEl.className = "font-semibold text-gray-600";
+  }
+}
+
+document.getElementById("loadGraphQLSchemaBtn").onclick = async () => {
+  if (!gqlConfig.endpoint) {
+    alert("Please configure GraphQL endpoint in Tools tab first");
+    return;
+  }
+
+  const btn = document.getElementById("loadGraphQLSchemaBtn");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+
+  try {
+    await introspectSchema();
+    btn.textContent = "✓ Schema Loaded";
+    btn.className = "w-full px-3 py-2 bg-green-600 text-white rounded text-sm mb-2";
+    
+    // Show available queries
+    document.getElementById("availableQueriesPanel").classList.remove("hidden");
+    renderAvailableQueries();
+    
+    setTimeout(() => {
+      btn.textContent = "Reload Schema";
+      btn.disabled = false;
+      btn.className = "w-full px-3 py-2 bg-purple-600 text-white rounded text-sm mb-2";
+    }, 2000);
+  } catch (error) {
+    btn.textContent = "Load Schema";
+    btn.disabled = false;
+    alert(`Failed to load schema: ${error.message}`);
+  }
+};
+
+function buildSchemaContext() {
+  if (!gqlSchema) return "";
+  
+  const types = gqlSchema.types
+    .filter(t => !t.name.startsWith("__") && t.kind === "OBJECT")
+    .slice(0, 10);
+  
+  let context = "Available GraphQL types and fields:\n\n";
+  
+  types.forEach(type => {
+    context += `## ${type.name}\n`;
+    if (type.fields) {
+      type.fields.slice(0, 10).forEach(field => {
+        const typeName = field.type.name || field.type.kind;
+        context += `  - ${field.name}: ${typeName}\n`;
+      });
+    }
+    context += "\n";
+  });
+  
+  return context;
+}
+
+function renderAvailableQueries() {
+  const container = document.getElementById("availableQueriesList");
+  container.innerHTML = "";
+  
+  if (!gqlSchema || !gqlSchema.queryType) return;
+  
+  const queryType = gqlSchema.types.find(t => t.name === gqlSchema.queryType.name);
+  if (!queryType || !queryType.fields) return;
+  
+  queryType.fields.slice(0, 10).forEach(field => {
+    const div = document.createElement("div");
+    div.className = "text-xs p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer";
+    div.textContent = field.name;
+    div.onclick = () => {
+      document.getElementById("chatInput").value = `Show me data from ${field.name}`;
+    };
+    container.appendChild(div);
+  });
 }
 
 /* --------------------------------------------------------
@@ -658,6 +988,7 @@ function addChatMessage(role, text) {
     document.getElementById("customHeaderValue").value = gqlConfig.customHeaderValue;
   }
   
+  updateGqlConnectionStatus();
   renderQueryHistory();
 })();
 
@@ -739,11 +1070,9 @@ document.getElementById("testConnectionBtn").onclick = async () => {
 };
 
 // Introspect schema
-document.getElementById("introspectSchemaBtn").onclick = async () => {
-  const endpoint = document.getElementById("gqlEndpoint").value;
-  if (!endpoint) return alert("Please enter an endpoint URL");
-  
-  showStatus("Fetching schema...", "info");
+async function introspectSchema() {
+  const endpoint = gqlConfig.endpoint || document.getElementById("gqlEndpoint").value;
+  if (!endpoint) throw new Error("Please enter an endpoint URL");
   
   const introspectionQuery = `
     query IntrospectionQuery {
@@ -757,9 +1086,14 @@ document.getElementById("introspectSchemaBtn").onclick = async () => {
           description
           fields {
             name
+            description
             type {
               name
               kind
+              ofType {
+                name
+                kind
+              }
             }
           }
         }
@@ -767,24 +1101,34 @@ document.getElementById("introspectSchemaBtn").onclick = async () => {
     }
   `;
   
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ query: introspectionQuery })
+  });
+  
+  const result = await response.json();
+  
+  if (result.errors) {
+    throw new Error(result.errors[0].message);
+  }
+  
+  gqlSchema = result.data.__schema;
+  return gqlSchema;
+}
+
+document.getElementById("introspectSchemaBtn").onclick = async () => {
+  const endpoint = document.getElementById("gqlEndpoint").value;
+  if (!endpoint) return alert("Please enter an endpoint URL");
+  
+  showStatus("Fetching schema...", "info");
+  
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: buildHeaders(),
-      body: JSON.stringify({ query: introspectionQuery })
-    });
-    
-    const result = await response.json();
-    
-    if (result.errors) {
-      showStatus("Schema introspection failed", "error");
-      document.getElementById("gqlResponse").textContent = JSON.stringify(result.errors, null, 2);
-    } else {
-      showStatus("Schema retrieved successfully!", "success");
-      displaySchema(result.data.__schema);
-    }
+    const schema = await introspectSchema();
+    showStatus("Schema retrieved successfully!", "success");
+    displaySchema(schema);
   } catch (error) {
-    showStatus(`Error: ${error.message}`, "error");
+    showStatus(`Schema introspection failed: ${error.message}`, "error");
   }
 };
 
@@ -817,7 +1161,8 @@ function displaySchema(schema) {
     if (type.fields && type.fields.length > 0) {
       html += `<div class="ml-4 text-xs text-gray-600">`;
       type.fields.slice(0, 5).forEach(field => {
-        html += `<div>• ${field.name}: ${field.type.name || field.type.kind}</div>`;
+        const typeName = field.type.name || field.type.ofType?.name || field.type.kind;
+        html += `<div>• ${field.name}: ${typeName}</div>`;
       });
       if (type.fields.length > 5) {
         html += `<div class="text-gray-400">... ${type.fields.length - 5} more fields</div>`;
@@ -837,6 +1182,28 @@ function displaySchema(schema) {
 }
 
 // Execute GraphQL query
+async function executeGraphQLQuery(query, variables) {
+  const endpoint = gqlConfig.endpoint || document.getElementById("gqlEndpoint").value;
+  if (!endpoint) throw new Error("GraphQL endpoint not configured");
+  
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      query: query,
+      variables: variables
+    })
+  });
+  
+  const result = await response.json();
+  
+  if (result.errors) {
+    throw new Error(result.errors[0].message);
+  }
+  
+  return result.data;
+}
+
 document.getElementById("executeQueryBtn").onclick = async () => {
   const endpoint = document.getElementById("gqlEndpoint").value;
   const query = document.getElementById("gqlQuery").value.trim();
@@ -860,30 +1227,15 @@ document.getElementById("executeQueryBtn").onclick = async () => {
   const startTime = Date.now();
   
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: buildHeaders(),
-      body: JSON.stringify({
-        query: query,
-        variables: variables
-      })
-    });
-    
+    const result = await executeGraphQLQuery(query, variables);
     const endTime = Date.now();
     const duration = endTime - startTime;
     
-    const result = await response.json();
-    
     document.getElementById("gqlResponse").textContent = JSON.stringify(result, null, 2);
-    
-    if (result.errors) {
-      showStatus(`Query completed with errors (${duration}ms)`, "error");
-    } else {
-      showStatus(`Query successful (${duration}ms)`, "success");
-    }
+    showStatus(`Query successful (${duration}ms)`, "success");
     
     // Add to history
-    addToQueryHistory(query, variables, result);
+    addToQueryHistory(query, variables, { data: result });
     
   } catch (error) {
     showStatus(`Error: ${error.message}`, "error");
@@ -895,7 +1247,7 @@ document.getElementById("executeQueryBtn").onclick = async () => {
 document.getElementById("formatQueryBtn").onclick = () => {
   const query = document.getElementById("gqlQuery").value;
   try {
-    // Simple formatting - add proper indentation
+    // Simple formatting
     const formatted = query
       .replace(/\{/g, '{\n  ')
       .replace(/\}/g, '\n}')
@@ -1032,6 +1384,7 @@ function renderQueryHistory() {
 renderCards();
 renderTagFilter();
 renderChatKnowledgeList();
+updateGqlConnectionStatus();
 </script>
 </body>
 </html>
